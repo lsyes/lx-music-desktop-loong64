@@ -1,13 +1,14 @@
 const fs = require('fs')
 const fsPromises = require('fs').promises
 const path = require('path')
-const { Arch } = require('electron-builder')
+const { Arch } = require('@loongdotjs/electron-builder')
 const nodeAbi = require('node-abi')
 
 const better_sqlite3_fileNameMap = {
   [Arch.x64]: 'linux-x64',
   [Arch.arm64]: 'linux-arm64',
   [Arch.armv7l]: 'linux-arm',
+  [Arch.loong64]: 'linux-loong64',
 }
 
 const qrc_decode_fileNameMap = {
@@ -20,6 +21,7 @@ const qrc_decode_fileNameMap = {
     [Arch.x64]: 'linux-x64',
     [Arch.arm64]: 'linux-arm64',
     [Arch.armv7l]: 'linux-arm',
+    [Arch.loong64]: 'linux-loong64',
   },
   darwin: {
     [Arch.x64]: 'darwin-x64',
@@ -41,6 +43,10 @@ const replaceSqliteLib = async(electronNodeAbi, arch) => {
 }
 
 const replaceQrcDecodeLib = async(electronNodeAbi, platform, arch) => {
+  if (arch === Arch.loong64) {
+    console.log('Skipping qrc_decode for loong64');
+    return;
+  }
   console.log('replace qrc_decode lib...', platform, electronNodeAbi, qrc_decode_fileNameMap[platform][arch])
   const filePath = path.join(__dirname, `./lib/qrc_decode_electron-v${electronNodeAbi}-${qrc_decode_fileNameMap[platform][arch]}.node`)
   const targetPath = path.join(__dirname, '../build/Release/qrc_decode.node')
@@ -63,6 +69,7 @@ module.exports = async(context) => {
     case Arch.x64:
     case Arch.arm64:
     case Arch.armv7l:
+    case Arch.loong64:
       if (fs.existsSync(bindingFilePath)) {
         // console.log('rename binding file...')
         await fsPromises.rename(bindingFilePath, bindingBakFilePath)

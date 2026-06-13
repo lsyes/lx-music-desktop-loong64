@@ -1,6 +1,6 @@
 /* eslint-disable no-template-curly-in-string */
 
-const builder = require('electron-builder')
+const builder = require('@loongdotjs/electron-builder')
 const beforePack = require('./build-before-pack')
 const afterPack = require('./build-after-pack')
 
@@ -51,6 +51,9 @@ const options = {
       repo: 'lx-music-desktop',
     },
   ],
+  electronDownload: {
+    mirror: 'https://github.com/darkyzhou/electron-loong64/releases/download/',
+  },
 }
 /**
  * @type {import('electron-builder').Configuration}
@@ -284,6 +287,7 @@ const build = async(target, arch, packageType, publishType) => {
     ia32: arch == 'x86' || arch == 'x86_64',
     arm64: arch == 'arm64',
     armv7l: arch == 'armv7l',
+    loong64: arch == 'loong64',
     config: { ...options, ...targetInfo.options },
   })
   // .then((result) => {
