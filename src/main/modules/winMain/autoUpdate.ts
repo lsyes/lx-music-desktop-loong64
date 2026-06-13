@@ -1,9 +1,9 @@
-import { BrowserWindow } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { log, isWin } from '@common/utils'
 import { mainOn } from '@common/mainIpc'
 import { isExistWindow, sendEvent } from './index'
 import { WIN_MAIN_RENDERER_EVENT_NAME } from '@common/ipcNames'
+const isLoong64 = process.arch === 'loong64'
 
 autoUpdater.logger = log
 autoUpdater.autoDownload = false
@@ -82,6 +82,14 @@ const handleSendEvent = (action: WaitEvent) => {
 }
 
 export default () => {
+  if (isLoong64) {
+    log.info('loong64 architecture detected, auto-updater disabled')
+    mainOn(WIN_MAIN_RENDERER_EVENT_NAME.update_check, () => {
+      handleSendEvent({ type: WIN_MAIN_RENDERER_EVENT_NAME.update_error, info: 'unsupported platform' })
+    })
+    return
+  }
+
   autoUpdater.on('checking-for-update', () => {
     sendStatusToWindow('Checking for update...')
   })
