@@ -1,3 +1,4 @@
+import { BrowserWindow } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { log, isWin } from '@common/utils'
 import { mainOn } from '@common/mainIpc'
@@ -71,7 +72,11 @@ interface WaitEvent {
 const handleSendEvent = (action: WaitEvent) => {
   if (isExistWindow()) {
     setTimeout(() => { // 延迟发送事件，过早发送可能渲染进程还没启动完成
-      sendEvent(action.type, action.info)
+      try {
+        sendEvent(action.type, action.info)
+      } catch (err) {
+        log.error('Failed to send update event:', err)
+      }
     }, 1000)
   }
 }
@@ -111,14 +116,21 @@ export default () => {
 
   mainOn(WIN_MAIN_RENDERER_EVENT_NAME.update_download_update, () => {
     if (!autoUpdater.isUpdaterActive()) return
-    void autoUpdater.downloadUpdate()
+    void autoUpdater.downloadUpdate().catch((err) => {
+      log.error('Failed to download update:', err)
+      handleSendEvent({ type: WIN_MAIN_RENDERER_EVENT_NAME.update_error, info: err?.message ?? 'download update failed' })
+    })
   })
 
   mainOn(WIN_MAIN_RENDERER_EVENT_NAME.quit_update, () => {
     global.lx.isSkipTrayQuit = true
 
     setTimeout(() => {
-      autoUpdater.quitAndInstall(true, true)
+      try {
+        autoUpdater.quitAndInstall(true, true)
+      } catch (err) {
+        log.error('Failed to quit and install update:', err)
+      }
     }, 1000)
   })
 }
@@ -141,7 +153,10 @@ const checkUpdate = () => {
   if (isWin && process.arch.includes('arm')) {
     handleSendEvent({ type: WIN_MAIN_RENDERER_EVENT_NAME.update_error, info: 'failed' })
   } else {
-    autoUpdater.autoDownload = global.lx.appSetting['common.tryAutoUpdate']
-    void autoUpdater.checkForUpdates()
+    autoUpdater.autoDownload = global.lx?.appSetting?.['common.tryAutoUpdate'] ?? false
+    void autoUpdater.checkForUpdates().catch((err) => {
+      log.error('Failed to check for updates:', err)
+      handleSendEvent({ type: WIN_MAIN_RENDERER_EVENT_NAME.update_error, info: err?.message ?? 'check update failed' })
+    })
   }
 }

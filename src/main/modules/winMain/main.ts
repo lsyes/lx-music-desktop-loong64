@@ -149,7 +149,7 @@ export const setProxy = () => {
 
 
 export const sendEvent = <T = any>(name: string, params?: T) => {
-  if (!browserWindow) return
+  if (!browserWindow || browserWindow.isDestroyed()) return
   mainSend(browserWindow, name, params)
 }
 
