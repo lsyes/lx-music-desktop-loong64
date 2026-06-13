@@ -8,8 +8,10 @@ import { sendFocus, sendTaskbarButtonClick } from './rendererEvent'
 import { encodePath } from '@common/utils/electron'
 
 let browserWindow: Electron.BrowserWindow | null = null
+let readyToShowTimer: ReturnType<typeof setTimeout> | null = null
+const isLoong64 = process.arch === 'loong64'
 
-const winEvent = () => {
+const winEvent = (show: boolean) => {
   if (!browserWindow) return
 
   browserWindow.on('close', event => {
@@ -25,6 +27,10 @@ const winEvent = () => {
   })
 
   browserWindow.on('closed', () => {
+    if (readyToShowTimer) {
+      clearTimeout(readyToShowTimer)
+      readyToShowTimer = null
+    }
     // global.lx.mainWindowClosed = true
     browserWindow = null
   })
@@ -41,7 +47,22 @@ const winEvent = () => {
     global.lx.event_app.main_window_blur()
   })
 
+  if (!global.envParams.cmdParams.hidden && !show) {
+    readyToShowTimer = setTimeout(() => {
+      if (readyToShowTimer) {
+        readyToShowTimer = null
+        showWindow()
+        setThumbarButtons()
+        global.lx.event_app.main_window_ready_to_show()
+      }
+    }, isLoong64 ? 6000 : 3000)
+  }
+
   browserWindow.once('ready-to-show', () => {
+    if (readyToShowTimer) {
+      clearTimeout(readyToShowTimer)
+      readyToShowTimer = null
+    }
     if (!global.envParams.cmdParams.hidden) {
       showWindow()
       setThumbarButtons()
@@ -86,7 +107,7 @@ export const createWindow = () => {
     maximizable: false,
     fullscreenable: true,
     roundedCorners: global.envParams.cmdParams.dt,
-    show: false,
+    show: isLoong64,
     webPreferences: {
       session: ses,
       nodeIntegrationInWorker: true,
@@ -109,7 +130,7 @@ export const createWindow = () => {
   const winURL = process.env.NODE_ENV !== 'production' ? 'http://localhost:9080' : `file://${path.join(encodePath(__dirname), 'index.html')}`
   void browserWindow.loadURL(winURL + `?os=${getPlatform()}&dt=${global.envParams.cmdParams.dt}&dark=${shouldUseDarkColors}&theme=${encodeURIComponent(JSON.stringify(theme))}`)
 
-  winEvent()
+  winEvent(isLoong64)
 
   if (global.envParams.cmdParams.odt) handleOpenDevTools(browserWindow.webContents)
 
